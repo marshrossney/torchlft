@@ -5,6 +5,7 @@ import torch
 
 Tensor = torch.Tensor
 
+log2 = log(2)
 
 def mod_2pi(θ: Tensor) -> Tensor:
     return torch.remainder(θ, 2 * π)
@@ -14,6 +15,13 @@ def log_cosh(x: Tensor) -> Tensor:
     """Numerically stable implementation of log(cosh(x))"""
     return abs(x) + torch.log1p(torch.exp(-1 * abs(x))) - log(2)
 
+
+def softplus(x: Tensor, β: float = log2) -> Tensor:
+    return (1 / β) * torch.log1p(torch.exp(β * x))
+
+def inv_softplus(σ: Tensor, β: float = log2) -> Tensor:
+    """Numerical stable implementation of log( exp(βx) - 1 ) / β"""
+    return σ + (1 / β) * torch.log(-torch.expm1(-β * σ))
 
 def sum_except_batch(x: Tensor, keepdim: bool = False) -> Tensor:
     return x.flatten(start_dim=1).sum(dim=1, keepdim=keepdim)

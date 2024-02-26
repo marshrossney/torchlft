@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import TypeAlias
+from typing import Self, TypeAlias
 
 import torch
 import torch.nn as nn

@@ -2,6 +2,7 @@
 ignore = 
     E501
     W503
+    E704
 per-file-ignores =
     **/__init__.py:F401
 exclude = 

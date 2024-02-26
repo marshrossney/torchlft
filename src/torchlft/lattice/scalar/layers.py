@@ -10,33 +10,38 @@ from torchlft.nflow.partition import Checkerboard2d
 from torchlft.nflow.transforms.core import UnivariateTransformModule
 from torchlft.utils.linalg import mv
 from torchlft.utils.lattice import checkerboard_mask
+from torchlft.utils.torch import softplus, inv_softplus
 
 
 Tensor: TypeAlias = torch.Tensor
 
 
 class GlobalRescalingLayer(Layer):
-    def __init__(self):
+    def __init__(self, init_scale: float = 1.0):
         super().__init__()
-        scale = torch.zeros(1)
-        self.register_parameter("scale", nn.Parameter(scale))
+        init_scale = inv_softplus(torch.tensor(init_scale))
+        self.register_parameter("scale", nn.Parameter(init_scale))
 
     def forward(self, z: Tensor) -> tuple[Tensor, Tensor]:
-        σ = torch.nn.functional.softplus(self.scale, beta=log(2))
+        σ = softplus(self.scale) 
         φ = σ * z
         log_det_dφdz = σ.log().mul(z[0].numel()).expand(φ.shape[0], 1)
         return φ, log_det_dφdz
 
 
 class DiagonalLinearLayer(Layer):
-    def __init__(self, size: int):
+    def __init__(self, init_diag: Tensor):
         super().__init__()
-        weight = torch.zeros(size)
+        
+        weight = inv_softplus(init_diag)
         self.register_parameter("weight", nn.Parameter(weight))
+        
+    @classmethod
+    def from_size(cls, size: int):
+        return cls(torch.eye(size))
 
     def get_weight(self) -> Tensor:
-        diag = torch.nn.functional.softplus(self.weight, beta=log(2))
-        return torch.diag_embed(diag)
+        return torch.diag_embed(softplus(self.weight))
 
     def forward(self, z: Tensor) -> tuple[Tensor, Tensor]:
         assert z.dim() == 2
@@ -47,21 +52,36 @@ class DiagonalLinearLayer(Layer):
 
 
 class TriangularLinearLayer(Layer):
-    def __init__(self, size: int):
+    def __init__(self, init_weights: Tensor):
         super().__init__()
-        D = size
+        assert init_weights.dim() == 2
+        assert init_weights.shape[0] == init_weights.shape[1]
+        assert torch.allclose(init_weights.tril(), init_weights)
 
-        diag = torch.empty(D).uniform_(0, 1)
-        tril = torch.empty((D**2 - D) // 2).uniform_(0, 1)
-        mask = torch.ones(D, D).tril(-1).bool()
+        mask = torch.ones_like(init_weights, dtype=torch.bool).tril(-1)
+        diag = inv_softplus(init_weights.diag())
+        tril = init_weights.masked_select(mask)
 
         self.register_parameter("diag", nn.Parameter(diag))
         self.register_parameter("tril", nn.Parameter(tril))
         self.register_buffer("mask", mask)
 
+    @classmethod
+    def from_size(cls, size: int):
+        return cls(torch.eye(D) + torch.empty(D**2).uniform_(0, 1).tril(-1))
+
+    @classmethod
+    def from_gaussian_target(cls, covariance: Tensor | None = None, precision: Tensor | None = None):
+        assert (covariance is None) ^ (precision is None)
+        if precision is not None:
+            covariance = torch.linalg.inv(precision)
+
+        cholesky = torch.linalg.cholesky(covariance)
+
+        return cls(cholesky)
+
     def get_weight(self) -> Tensor:
-        diag = torch.nn.functional.softplus(self.diag, beta=log(2))
-        return torch.diag_embed(diag).masked_scatter(self.mask, self.tril)
+        return torch.diag_embed(softplus(self.diag)).masked_scatter(self.mask, self.tril)
 
     def forward(self, z: Tensor) -> tuple[Tensor, Tensor]:
         assert z.dim() == 2

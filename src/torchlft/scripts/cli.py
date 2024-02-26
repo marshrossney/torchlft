@@ -9,10 +9,15 @@ subcommands.add_subcommand("train", train.parser)
 
 
 def main(config: Namespace) -> None:
+
     if config.subcommand == "train":
         train.main(config.train)
 
 
-if __name__ == "__main__":
+def cli():
     config = parser.parse_args()
     main(config)
+
+
+if __name__ == "__main__":
+    cli()

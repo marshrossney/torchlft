@@ -41,7 +41,7 @@ class LogWeightMetrics:
     def metropolis_acceptance(log_weights: Tensor, dim: int = 1) -> Tensor:
         return torch.tensor(
             [_metropolis_acceptance(x) for x in log_weights],
-            dtype=torch.double,
+            dtype=torch.float,
         )
 
     @staticmethod

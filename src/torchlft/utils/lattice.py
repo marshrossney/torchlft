@@ -1,3 +1,5 @@
+import itertools
+import math
 from typing import TypeAlias
 
 import torch
@@ -108,3 +110,18 @@ def restore_geometry_2d(matrix: Tensor, lattice: tuple[int, int]) -> Tensor:
         ],
         dim=0,
     ).mean(dim=0)
+
+
+def build_neighbour_list(
+    lattice: tuple[int, ...],
+) -> list[list[int]]:
+    indices = torch.arange(math.prod(lattice)).view(lattice)
+    dims = range(len(lattice))
+    neighbour_indices = torch.stack(
+        [
+            indices.roll(shift, dim).flatten()
+            for shift, dim in itertools.product([1, -1], dims)
+        ],
+        dim=1,
+    )
+    return neighbour_indices.tolist()

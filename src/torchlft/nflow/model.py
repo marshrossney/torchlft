@@ -10,6 +10,7 @@ from torchlft.utils.torch import tuple_concat
 
 
 Tensor: TypeAlias = torch.Tensor
+Tensors: TypeAlias = tuple[Tensor, ...]
 
 
 def metropolis_hastings(log_weights: Tensor):
@@ -38,8 +39,8 @@ def metropolis_hastings(log_weights: Tensor):
 
 class Model(nn.Module, metaclass=ABCMeta):
     class Fields(NamedTuple):
-        inputs: tuple[Tensor, ...]
-        outputs: tuple[Tensor, ...]
+        inputs: Tensor | Tensors
+        outputs: Tensor | Tensors
 
     class Actions(NamedTuple):
         base: Tensor
@@ -83,7 +84,7 @@ class Model(nn.Module, metaclass=ABCMeta):
     @torch.no_grad()
     def weighted_sample(
         self, batch_size: int, n_batches: int = 1
-    ) -> tuple[Tensor, Tensor]:
+    ) -> tuple[Tensor | Tensors, Tensor]:
         sample = []
         for _ in range(n_batches):
             fields, actions = self(batch_size)
@@ -102,17 +103,20 @@ class Model(nn.Module, metaclass=ABCMeta):
 
     @abstractmethod
     def flow_forward(
-        self, inputs: tuple[Tensor, ...]
-    ) -> tuple[tuple[Tensor, ...], Tensor]: ...
+        self, inputs: Tensor | Tensors
+    ) -> tuple[Tensor | Tensors, Tensor]: ...
 
     @abstractmethod
     def sample_base(
         self,
         batch_size: int,
-    ) -> tuple[Tensor | tuple[Tensor, ...], Tensor]: ...
+    ) -> tuple[Tensor | Tensors, Tensor]: ...
 
     @abstractmethod
     def compute_target(
         self,
-        inputs: tuple[Tensor, ...],
+        inputs: Tensor | Tensors,
     ) -> Tensor: ...
+
+    def grad_pullback(self, inputs: Tensor | Tensors) -> Tensor:
+        raise NotImplementedError

@@ -156,13 +156,16 @@ class DenseNet:
         return net
 
 
+# Really a 1x1 convolution but batched linear layers are faster... hence
+# exactly the same as DenseNet but with 'channels' rather than 'sizes'
 @dataclass(kw_only=True)
 class PointNet:
     channels: list[int]
     activation: Activation
+    bias: bool = True
 
     def build(self):
-        linear_layers = [nn.LazyLinear(n) for n in self.channels]
+        linear_layers = [nn.LazyLinear(n, bias=self.bias) for n in self.channels]
         activations = [self.activation() for _ in linear_layers]
         layers = list(chain(*zip(linear_layers, activations)))
         net = nn.Sequential(*layers)

@@ -57,6 +57,9 @@ class UnivariateTransformModule(TransformModule):
             for wrapper in wrappers
         }
 
+    def extra_repr(self) -> str:
+        return f"(univariate): {self.transform_cls}"
+
     def forward(self, context: Any) -> Transform:
         params = self.context_fn(context)
         transform = self.transform_cls(params)
